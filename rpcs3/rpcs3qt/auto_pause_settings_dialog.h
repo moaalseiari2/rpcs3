@@ -20,13 +20,13 @@ class auto_pause_settings_dialog : public QDialog
 	};
 
 	std::vector<u32> m_entries;
+	QTableWidget *m_pause_list;
 
 public:
 	explicit auto_pause_settings_dialog(QWidget* parent);
-	QTableWidget *pauseList;
-	void UpdateList(void);
-	void LoadEntries(void);
-	void SaveEntries(void);
+	void UpdateList();
+	void LoadEntries();
+	void SaveEntries();
 
 public Q_SLOTS:
 	void OnRemove();
@@ -52,5 +52,5 @@ public:
 private Q_SLOTS:
 	void OnOk();
 	void OnCancel();
-	void OnUpdateValue();
+	void OnUpdateValue() const;
 };

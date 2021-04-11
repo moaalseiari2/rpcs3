@@ -17,8 +17,8 @@ class breakpoint_handler
 {
 
 public:
-	breakpoint_handler();
-	~breakpoint_handler();
+	breakpoint_handler() = default;
+	~breakpoint_handler() = default;
 
 	/**
 	* Returns true iff breakpoint exists at loc.
@@ -30,7 +30,6 @@ public:
 	* Returns true if added successfully. TODO: flags
 	*/
 	bool AddBreakpoint(u32 loc);
-
 
 	/**
 	* Returns true if removed breakpoint at loc successfully.

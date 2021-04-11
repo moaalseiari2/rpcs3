@@ -48,10 +48,11 @@ namespace cfg
 	// Config tree entry abstract base class
 	class _base
 	{
-		const type m_type;
+		const type m_type{};
 
 	protected:
 		bool m_dynamic = true;
+		const std::string m_name{};
 
 		// Ownerless entry constructor
 		_base(type _type);
@@ -64,11 +65,15 @@ namespace cfg
 
 		_base& operator=(const _base&) = delete;
 
+		virtual ~_base() = default;
+
 		// Get type
 		type get_type() const { return m_type; }
 
+		const std::string& get_name() const { return m_name; }
+
 		// Get dynamic property for reloading configs during games
-		bool get_is_dynamic() const { return m_dynamic; };
+		bool get_is_dynamic() const { return m_dynamic; }
 
 		// Reset defaults
 		virtual void from_default() = 0;
@@ -95,7 +100,7 @@ namespace cfg
 	// Config tree node which contains another nodes
 	class node : public _base
 	{
-		std::vector<std::pair<std::string, _base*>> m_nodes;
+		std::vector<_base*> m_nodes{};
 
 		friend class _base;
 
@@ -391,8 +396,6 @@ namespace cfg
 	// Simple string entry with mutex
 	class string : public _base
 	{
-		const std::string m_name;
-
 		atomic_ptr<std::string> m_value;
 
 	public:
@@ -400,7 +403,6 @@ namespace cfg
 
 		string(node* owner, std::string name, std::string def = {}, bool dynamic = false)
 			: _base(type::string, owner, name, dynamic)
-			, m_name(std::move(name))
 			, m_value(def)
 			, def(std::move(def))
 		{
@@ -426,11 +428,6 @@ namespace cfg
 			}
 		}
 
-		const std::string& get_name() const
-		{
-			return m_name;
-		}
-
 		void from_default() override;
 
 		std::string to_string() const override
@@ -448,7 +445,7 @@ namespace cfg
 	// Simple set entry (TODO: template for various types)
 	class set_entry final : public _base
 	{
-		std::set<std::string> m_set;
+		std::set<std::string> m_set{};
 
 	public:
 		// Default value is empty list in current implementation
@@ -484,7 +481,7 @@ namespace cfg
 
 	class log_entry final : public _base
 	{
-		std::map<std::string, logs::level> m_map;
+		std::map<std::string, logs::level> m_map{};
 
 	public:
 		log_entry(node* owner, const std::string& name)

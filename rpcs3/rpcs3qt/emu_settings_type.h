@@ -11,7 +11,7 @@ enum class emu_settings_type
 	PPUDecoder,
 	SPUDecoder,
 	HookStaticFuncs,
-	EnableThreadScheduler,
+	ThreadSchedulerMode,
 	LowerSPUThreadPrio,
 	SPULoopDetection,
 	PreferredSPUThreads,
@@ -19,6 +19,7 @@ enum class emu_settings_type
 	SPUDebug,
 	MFCDebug,
 	MaxLLVMThreads,
+	PPULLVMPrecompilation,
 	EnableTSX,
 	AccurateGETLLAR,
 	AccurateSpuDMA,
@@ -156,13 +157,13 @@ enum class emu_settings_type
 };
 
 /** A helper map that keeps track of where a given setting type is located*/
-static const QMap<emu_settings_type, cfg_location> settings_location =
+inline static const QMap<emu_settings_type, cfg_location> settings_location =
 {
 	// Core Tab
 	{ emu_settings_type::PPUDecoder,               { "Core", "PPU Decoder"}},
 	{ emu_settings_type::SPUDecoder,               { "Core", "SPU Decoder"}},
 	{ emu_settings_type::HookStaticFuncs,          { "Core", "Hook static functions"}},
-	{ emu_settings_type::EnableThreadScheduler,    { "Core", "Enable thread scheduler"}},
+	{ emu_settings_type::ThreadSchedulerMode,      { "Core", "Thread Scheduler Mode"}},
 	{ emu_settings_type::LowerSPUThreadPrio,       { "Core", "Lower SPU thread priority"}},
 	{ emu_settings_type::SPULoopDetection,         { "Core", "SPU loop detection"}},
 	{ emu_settings_type::PreferredSPUThreads,      { "Core", "Preferred SPU Threads"}},
@@ -170,6 +171,7 @@ static const QMap<emu_settings_type, cfg_location> settings_location =
 	{ emu_settings_type::SPUDebug,                 { "Core", "SPU Debug"}},
 	{ emu_settings_type::MFCDebug,                 { "Core", "MFC Debug"}},
 	{ emu_settings_type::MaxLLVMThreads,           { "Core", "Max LLVM Compile Threads"}},
+	{ emu_settings_type::PPULLVMPrecompilation,    { "Core", "PPU LLVM Precompilation"}},
 	{ emu_settings_type::EnableTSX,                { "Core", "Enable TSX"}},
 	{ emu_settings_type::AccurateGETLLAR,          { "Core", "Accurate GETLLAR"}},
 	{ emu_settings_type::AccurateSpuDMA,           { "Core", "Accurate SPU DMA"}},
@@ -228,7 +230,7 @@ static const QMap<emu_settings_type, cfg_location> settings_location =
 	{ emu_settings_type::DriverWakeUpDelay,          { "Video", "Driver Wake-Up Delay"}},
 
 	// Vulkan
-	{ emu_settings_type::VulkanAsyncTextureUploads,        { "Video", "Vulkan", "Asynchronous Texture Streaming"}},
+	{ emu_settings_type::VulkanAsyncTextureUploads,        { "Video", "Vulkan", "Asynchronous Texture Streaming 2"}},
 	{ emu_settings_type::VulkanAsyncSchedulerDriver,       { "Video", "Vulkan", "Asynchronous Queue Scheduler"}},
 
 	// Performance Overlay

@@ -6,8 +6,6 @@
 #include <QLineEdit>
 #include <QLabel>
 
-#include <memory>
-
 class CPUDisAsm;
 class cpu_thread;
 
@@ -27,5 +25,5 @@ private:
 public:
 	instruction_editor_dialog(QWidget *parent, u32 _pc, CPUDisAsm* _disasm, std::function<cpu_thread*()> func);
 
-	void updatePreview();
+	void updatePreview() const;
 };

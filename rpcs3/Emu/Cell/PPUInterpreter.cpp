@@ -6,6 +6,7 @@
 #include "PPUThread.h"
 #include "Emu/Cell/Common.h"
 #include "Emu/Cell/PPUFunction.h"
+#include "Emu/Cell/timers.hpp"
 
 #include <bit>
 #include <cmath>
@@ -387,7 +388,6 @@ static add_flags_result_t<u64> add64_flags(u64 a, u64 b, bool c)
 	return{ a, b, c };
 }
 
-extern u64 get_timebased_time();
 extern void ppu_execute_syscall(ppu_thread& ppu, u64 code);
 
 extern u32 ppu_lwarx(ppu_thread& ppu, u32 addr);
@@ -399,7 +399,7 @@ extern void ppu_trap(ppu_thread& ppu, u64 addr);
 
 class ppu_scale_table_t
 {
-	std::array<v128, 32 + 31> m_data;
+	std::array<v128, 32 + 31> m_data{};
 
 public:
 	ppu_scale_table_t()
@@ -3896,7 +3896,8 @@ bool ppu_interpreter::EQV(ppu_thread& ppu, ppu_opcode_t op)
 
 bool ppu_interpreter::ECIWX(ppu_thread&, ppu_opcode_t)
 {
-	fmt::throw_exception("ECIWX");
+	ppu_log.fatal("ECIWX");
+	return false;
 }
 
 bool ppu_interpreter::LHZUX(ppu_thread& ppu, ppu_opcode_t op)
@@ -4010,7 +4011,8 @@ bool ppu_interpreter::ORC(ppu_thread& ppu, ppu_opcode_t op)
 
 bool ppu_interpreter::ECOWX(ppu_thread&, ppu_opcode_t)
 {
-	fmt::throw_exception("ECOWX");
+	ppu_log.fatal("ECOWX");
+	return false;
 }
 
 bool ppu_interpreter::STHUX(ppu_thread& ppu, ppu_opcode_t op)

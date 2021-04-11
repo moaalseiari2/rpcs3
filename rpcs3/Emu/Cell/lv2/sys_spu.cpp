@@ -12,8 +12,8 @@
 
 #include "Emu/Cell/ErrorCodes.h"
 #include "Emu/Cell/PPUThread.h"
-#include "Emu/Cell/PPUModule.h"
 #include "Emu/Cell/RawSPUThread.h"
+#include "Emu/Cell/timers.hpp"
 #include "sys_interrupt.h"
 #include "sys_process.h"
 #include "sys_memory.h"
@@ -24,8 +24,6 @@
 #include "util/asm.hpp"
 
 LOG_CHANNEL(sys_spu);
-
-extern u64 get_timebased_time();
 
 template <>
 void fmt_class_string<spu_group_status>::format(std::string& out, u64 arg)
@@ -102,7 +100,7 @@ void sys_spu_image::load(const fs::file& stream)
 	vm::page_protect(segs.addr(), utils::align(mem_size, 4096), 0, 0, vm::page_writable);
 }
 
-void sys_spu_image::free()
+void sys_spu_image::free() const
 {
 	if (type == SYS_SPU_IMAGE_TYPE_KERNEL)
 	{
@@ -1113,7 +1111,7 @@ error_code sys_spu_thread_group_join(ppu_thread& ppu, u32 id, vm::ptr<u32> cause
 			thread_ctrl::wait_on(ppu.state, state);
 		}
 	}
-	while (0);
+	while (false);
 
 	if (!cause)
 	{
@@ -1989,7 +1987,7 @@ error_code raw_spu_destroy(ppu_thread& ppu, u32 id)
 
 	(*thread)();
 
-	if (idm::withdraw<named_thread<spu_thread>>(idm_id, [&](spu_thread& spu) -> CellError
+	if (auto ret = idm::withdraw<named_thread<spu_thread>>(idm_id, [&](spu_thread& spu) -> CellError
 	{
 		if (std::addressof(spu) != std::addressof(*thread))
 		{
@@ -1998,7 +1996,7 @@ error_code raw_spu_destroy(ppu_thread& ppu, u32 id)
 
 		spu.cleanup();
 		return {};
-	}).ret)
+	}); !ret || ret.ret)
 	{
 		// Other thread destroyed beforehead
 		return CELL_ESRCH;

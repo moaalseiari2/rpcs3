@@ -30,7 +30,7 @@ public:
 	debugger_list(QWidget* parent, std::shared_ptr<gui_settings> settings, breakpoint_handler* handler);
 	void UpdateCPUData(cpu_thread* cpu, CPUDisAsm* disasm);
 public Q_SLOTS:
-	void ShowAddress(u32 addr, bool force = false);
+	void ShowAddress(u32 addr, bool select_addr = true, bool force = false);
 protected:
 	void keyPressEvent(QKeyEvent* event) override;
 	void mouseDoubleClickEvent(QMouseEvent* event) override;
@@ -46,11 +46,11 @@ private:
 	*/
 	u32 GetCenteredAddress(u32 address) const;
 
-	std::shared_ptr<gui_settings> xgui_settings;
+	std::shared_ptr<gui_settings> m_gui_settings;
 
 	breakpoint_handler* m_breakpoint_handler;
 	cpu_thread* m_cpu = nullptr;
-	CPUDisAsm* m_disasm;
+	CPUDisAsm* m_disasm = nullptr;
 	QDialog* m_cmd_detail = nullptr;
 	QLabel* m_detail_label = nullptr;
 };

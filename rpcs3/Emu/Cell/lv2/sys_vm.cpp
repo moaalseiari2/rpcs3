@@ -4,9 +4,8 @@
 #include "Emu/IdManager.h"
 #include "Emu/Cell/ErrorCodes.h"
 #include "Emu/Cell/PPUThread.h"
+#include "Emu/Cell/timers.hpp"
 #include "Emu/Memory/vm_locking.h"
-
-extern u64 get_timebased_time();
 
 sys_vm_t::sys_vm_t(u32 _addr, u32 vsize, lv2_memory_container* ct, u32 psize)
 	: ct(ct)
@@ -35,7 +34,7 @@ error_code sys_vm_memory_map(ppu_thread& ppu, u32 vsize, u32 psize, u32 cid, u64
 {
 	ppu.state += cpu_flag::wait;
 
-	sys_vm.error("sys_vm_memory_map(vsize=0x%x, psize=0x%x, cid=0x%x, flags=0x%llx, policy=0x%llx, addr=*0x%x)", vsize, psize, cid, flag, policy, addr);
+	sys_vm.warning("sys_vm_memory_map(vsize=0x%x, psize=0x%x, cid=0x%x, flags=0x%x, policy=0x%x, addr=*0x%x)", vsize, psize, cid, flag, policy, addr);
 
 	if (!vsize || !psize || vsize % 0x2000000 || vsize > 0x10000000 || psize > 0x10000000 || policy != SYS_VM_POLICY_AUTO_RECOMMENDED)
 	{

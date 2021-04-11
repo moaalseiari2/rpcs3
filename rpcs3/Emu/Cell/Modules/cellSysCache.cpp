@@ -68,7 +68,7 @@ struct syscache_info
 		}
 	}
 
-	void clear(bool remove_root) noexcept
+	void clear(bool remove_root) const noexcept
 	{
 		// Clear cache
 		if (!vfs::host::remove_all(cache_root + cache_id, cache_root, &g_mp_sys_dev_hdd1, remove_root))
@@ -81,7 +81,7 @@ struct syscache_info
 		{
 			idm::select<lv2_fs_object, lv2_file>([](u32 /*id*/, lv2_file& file)
 			{
-				if (std::memcmp("/dev_hdd1", file.name.data(), 9) == 0)
+				if (file.file && file.mp->flags & lv2_mp_flag::cache)
 				{
 					file.lock = 2;
 				}

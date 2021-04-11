@@ -71,6 +71,22 @@ namespace rsx
 						background_poster.set_size(1280, 720);
 						background_poster.set_raw_image(background_image.get());
 						background_poster.set_blur_strength(static_cast<u8>(g_cfg.video.shader_preloading_dialog.blur_strength));
+
+						ensure(background_image->w > 0);
+						ensure(background_image->h > 0);
+						ensure(background_poster.h > 0);
+
+						// Set padding in order to keep the aspect ratio
+						if ((background_image->w / static_cast<double>(background_image->h)) > (background_poster.w / static_cast<double>(background_poster.h)))
+						{
+							const int padding = (background_poster.h - static_cast<int>(background_image->h * (background_poster.w / static_cast<double>(background_image->w)))) / 2;
+							background_poster.set_padding(0, 0, padding, padding);
+						}
+						else
+						{
+							const int padding = (background_poster.w - static_cast<int>(background_image->w * (background_poster.h / static_cast<double>(background_image->h)))) / 2;
+							background_poster.set_padding(padding, padding, 0, 0);
+						}
 					}
 				}
 			}
@@ -166,6 +182,16 @@ namespace rsx
 			close(true, true);
 		}
 
+		void message_dialog::close(bool use_callback, bool stop_pad_interception)
+		{
+			if (num_progress_bars > 0)
+			{
+				Emu.GetCallbacks().handle_taskbar_progress(0, 1);
+			}
+
+			user_interface::close(use_callback, stop_pad_interception);
+		}
+
 		struct msg_dialog_thread
 		{
 			static constexpr auto thread_name = "MsgDialog Thread"sv;
@@ -193,11 +219,7 @@ namespace rsx
 				btn_cancel.translate(0, offset);
 			}
 
-			text_display.set_text(text);
-
-			u16 text_w, text_h;
-			text_display.measure_text(text_w, text_h);
-			text_display.translate(0, -(text_h - 16));
+			set_text(text);
 
 			switch (type.button_type.unshifted())
 			{
@@ -290,7 +312,16 @@ namespace rsx
 			return CELL_OK;
 		}
 
-		u32 message_dialog::progress_bar_count()
+		void message_dialog::set_text(const std::string& text)
+		{
+			u16 text_w, text_h;
+			text_display.set_pos(90, 364);
+			text_display.set_text(text);
+			text_display.measure_text(text_w, text_h);
+			text_display.translate(0, -(text_h - 16));
+		}
+
+		u32 message_dialog::progress_bar_count() const
 		{
 			return num_progress_bars;
 		}

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <thread>
 #include <queue>
 #include <deque>
 #include <variant>
@@ -9,7 +10,6 @@
 #include "GCM.h"
 #include "rsx_cache.h"
 #include "RSXFIFO.h"
-#include "RSXTexture.h"
 #include "RSXOffload.h"
 #include "RSXVertexProgram.h"
 #include "RSXFragmentProgram.h"
@@ -24,9 +24,6 @@
 #include "Emu/Cell/lv2/sys_rsx.h"
 #include "Emu/IdManager.h"
 #include "Emu/system_config.h"
-
-extern u64 get_guest_system_time();
-extern u64 get_system_time();
 
 extern atomic_t<bool> g_user_asked_for_frame_capture;
 extern rsx::frame_trace_data frame_debug;
@@ -428,7 +425,7 @@ namespace rsx
 			std::unordered_map<u32, u32> m_statistics_map;
 
 			// Enables/disables the ZCULL unit
-			void set_active(class ::rsx::thread* ptimer, bool active, bool flush_queue);
+			void set_active(class ::rsx::thread* ptimer, bool state, bool flush_queue);
 
 			// Checks current state of the unit and applies changes
 			void check_state(class ::rsx::thread* ptimer, bool flush_queue);
@@ -651,6 +648,7 @@ namespace rsx
 		u32 dbg_step_pc = 0;
 		atomic_t<u32> external_interrupt_lock{ 0 };
 		atomic_t<bool> external_interrupt_ack{ false };
+		atomic_t<bool> is_inited{ false };
 		bool is_fifo_idle() const;
 		void flush_fifo();
 		void recover_fifo();
@@ -806,7 +804,7 @@ namespace rsx
 		void run_FIFO();
 
 	public:
-		virtual void clear_surface(u32 /*arg*/) {};
+		virtual void clear_surface(u32 /*arg*/) {}
 		virtual void begin();
 		virtual void end();
 		virtual void execute_nop_draw();

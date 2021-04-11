@@ -3,6 +3,7 @@
 
 #include "Emu/system_config.h"
 #include "Emu/IdManager.h"
+#include "Emu/Cell/timers.hpp"
 
 #include "SPUDisAsm.h"
 #include "SPUThread.h"
@@ -16,7 +17,6 @@
 #include "util/sysinfo.hpp"
 
 #include <cmath>
-#include <mutex>
 #include <thread>
 
 #define SPU_OFF_128(x, ...) asmjit::x86::oword_ptr(*cpu, offset32(&spu_thread::x, ##__VA_ARGS__))
@@ -27,8 +27,6 @@
 
 extern const spu_decoder<spu_interpreter_fast> g_spu_interpreter_fast{}; // TODO: avoid
 const spu_decoder<spu_recompiler> s_spu_decoder;
-
-extern u64 get_timebased_time();
 
 std::unique_ptr<spu_recompiler_base> spu_recompiler_base::make_asmjit_recompiler()
 {
@@ -1515,6 +1513,7 @@ void spu_recompiler::RDCH(spu_opcode_t op)
 		c->movdqa(SPU_OFF_128(gpr, op.rt), vr);
 		return;
 	}
+	default: break;
 	}
 
 	c->lea(addr->r64(), get_pc(m_pos));
@@ -2506,6 +2505,7 @@ void spu_recompiler::WRCH(spu_opcode_t op)
 	{
 		return;
 	}
+	default: break;
 	}
 
 	c->lea(addr->r64(), get_pc(m_pos));

@@ -1,5 +1,6 @@
 #include "stdafx.h"
 #include "Emu/Cell/PPUModule.h"
+#include "Emu/Cell/timers.hpp"
 
 #include "Emu/Cell/lv2/sys_mutex.h"
 #include "Emu/Cell/lv2/sys_interrupt.h"
@@ -9,8 +10,6 @@
 #include "sysPrxForUser.h"
 
 LOG_CHANNEL(sysPrxForUser);
-
-extern u64 get_guest_system_time();
 
 vm::gvar<s32> sys_prx_version; // ???
 vm::gvar<vm::ptr<void()>> g_ppu_atexitspawn;
@@ -141,7 +140,8 @@ error_code cellSysconfPs1emu_EFDDAF6C()
 
 error_code sys_lv2coredump_D725F320()
 {
-	fmt::throw_exception("Unknown, unimplemented.");
+	sysPrxForUser.fatal("sys_lv2coredump_D725F320");
+	return CELL_OK;
 }
 
 error_code sys_get_bd_media_id()

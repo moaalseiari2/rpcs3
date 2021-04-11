@@ -81,7 +81,7 @@ namespace fs
 	{
 		virtual ~file_base();
 
-		virtual stat_t stat();
+		[[noreturn]] virtual stat_t stat();
 		virtual void sync();
 		virtual bool trunc(u64 length) = 0;
 		virtual u64 read(void* buffer, u64 size) = 0;
@@ -95,7 +95,7 @@ namespace fs
 	// Directory entry (TODO)
 	struct dir_entry : stat_t
 	{
-		std::string name;
+		std::string name{};
 
 		dir_entry()
 			: stat_t{}
@@ -198,7 +198,9 @@ namespace fs
 
 	class file final
 	{
-		std::unique_ptr<file_base> m_file;
+		std::unique_ptr<file_base> m_file{};
+
+		bool strict_read_check(u64 size, u64 type_size) const;
 
 	public:
 		// Default constructor
@@ -377,15 +379,24 @@ namespace fs
 		}
 
 		// Read std::basic_string
-		template <typename T>
-		std::enable_if_t<std::is_trivially_copyable_v<T> && !std::is_pointer_v<T>, bool> read(std::basic_string<T>& str, usz size,
+		template <bool IsStrict = false, typename T>
+		std::enable_if_t<std::is_trivially_copyable_v<T> && !std::is_pointer_v<T>, bool> read(std::basic_string<T>& str, usz _size,
 			const char* file = __builtin_FILE(),
 			const char* func = __builtin_FUNCTION(),
 			u32 line = __builtin_LINE(),
 			u32 col = __builtin_COLUMN()) const
 		{
-			str.resize(size);
-			return read(&str[0], size * sizeof(T), line, col, file, func) == size * sizeof(T);
+			if (!m_file) xnull({line, col, file, func});
+			if (!_size) return true;
+
+			if constexpr (IsStrict)
+			{
+				// If _size arg is too high std::bad_alloc may happen in resize and then we cannot error check
+				if (!strict_read_check(_size, sizeof(T))) return false;
+			}
+
+			str.resize(_size);
+			return read(str.data(), sizeof(T) * _size, line, col, file, func) == sizeof(T) * _size;
 		}
 
 		// Read POD, sizeof(T) is used
@@ -412,15 +423,23 @@ namespace fs
 		}
 
 		// Read POD std::vector
-		template <typename T>
-		std::enable_if_t<std::is_trivially_copyable_v<T> && !std::is_pointer_v<T>, bool> read(std::vector<T>& vec, usz size,
+		template <bool IsStrict = false, typename T>
+		std::enable_if_t<std::is_trivially_copyable_v<T> && !std::is_pointer_v<T>, bool> read(std::vector<T>& vec, usz _size,
 			const char* file = __builtin_FILE(),
 			const char* func = __builtin_FUNCTION(),
 			u32 line = __builtin_LINE(),
 			u32 col = __builtin_COLUMN()) const
 		{
-			vec.resize(size);
-			return read(vec.data(), sizeof(T) * size, line, col, file, func) == sizeof(T) * size;
+			if (!m_file) xnull({line, col, file, func});
+			if (!_size) return true;
+
+			if constexpr (IsStrict)
+			{
+				if (!strict_read_check(_size, sizeof(T))) return false;
+			}
+
+			vec.resize(_size);
+			return read(vec.data(), sizeof(T) * _size, line, col, file, func) == sizeof(T) * _size;
 		}
 
 		// Read POD (experimental)
@@ -482,7 +501,7 @@ namespace fs
 
 	class dir final
 	{
-		std::unique_ptr<dir_base> m_dir;
+		std::unique_ptr<dir_base> m_dir{};
 
 	public:
 		dir() = default;
@@ -543,7 +562,7 @@ namespace fs
 		class iterator
 		{
 			const dir* m_parent;
-			dir_entry m_entry;
+			dir_entry m_entry{};
 
 		public:
 			enum class mode
@@ -570,6 +589,14 @@ namespace fs
 					m_parent = nullptr;
 				}
 			}
+
+			iterator(const iterator&) = default;
+
+			iterator(iterator&&) = default;
+
+			iterator& operator=(const iterator&) = default;
+
+			iterator& operator=(iterator&&) = default;
 
 			dir_entry& operator *()
 			{
@@ -608,7 +635,7 @@ namespace fs
 	// Unique pending file creation destined to be renamed to the destination file
 	struct pending_file
 	{
-		fs::file file;
+		fs::file file{};
 
 		// This is meant to modify files atomically, overwriting is likely
 		bool commit(bool overwrite = true);
@@ -617,12 +644,9 @@ namespace fs
 		~pending_file();
 
 	private:
-		std::string m_path; // Pending file path
-		std::string m_dest; // Destination file path
+		std::string m_path{}; // Pending file path
+		std::string m_dest{}; // Destination file path
 	};
-
-	// Get real path for comparisons (TODO: investigate std::filesystem::path::compare implementation)
-	std::string escape_path(std::string_view path);
 
 	// Delete directory and all its contents recursively
 	bool remove_all(const std::string& path, bool remove_root = true);
@@ -696,13 +720,16 @@ namespace fs
 		{
 			const u64 old_size = obj.size();
 
-			if (old_size + size < old_size)
+			if (old_size + size < old_size || pos + size < pos)
 			{
 				xovfl();
 			}
 
 			if (pos > old_size)
 			{
+			 	// Reserve memory
+				obj.reserve(pos + size);
+
 				// Fill gap if necessary (default-initialized)
 				obj.resize(pos);
 			}

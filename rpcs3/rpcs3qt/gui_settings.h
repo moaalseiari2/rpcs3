@@ -70,9 +70,10 @@ namespace gui
 		case column_compat:
 			return "column_compat";
 		case column_count:
-		default:
 			return "";
 		}
+
+		fmt::throw_exception("get_game_list_column_name: Invalid column");
 	}
 
 	const QSize gl_icon_size_min    = QSize(40, 22);
@@ -84,8 +85,8 @@ namespace gui
 
 	inline int get_Index(const QSize& current)
 	{
-		int size_delta = gl_icon_size_max.width() - gl_icon_size_min.width();
-		int current_delta = current.width() - gl_icon_size_min.width();
+		const int size_delta = gl_icon_size_max.width() - gl_icon_size_min.width();
+		const int current_delta = current.width() - gl_icon_size_min.width();
 		return gl_max_slider_pos * current_delta / size_delta;
 	}
 
@@ -121,6 +122,7 @@ namespace gui
 	const gui_save ib_show_welcome = gui_save(main_window, "infoBoxEnabledWelcome",    true);
 	const gui_save ib_confirm_exit = gui_save(main_window, "confirmationBoxExitGame",  true);
 	const gui_save ib_confirm_boot = gui_save(main_window, "confirmationBoxBootGame",  true);
+	const gui_save ib_obsolete_cfg = gui_save(main_window, "confirmationObsoleteCfg",  true);
 
 	const gui_save fd_install_pkg  = gui_save(main_window, "lastExplorePathPKG",  "");
 	const gui_save fd_install_pup  = gui_save(main_window, "lastExplorePathPUP",  "");
@@ -130,6 +132,7 @@ namespace gui
 	const gui_save fd_cg_disasm    = gui_save(main_window, "lastExplorePathCGD",  "");
 	const gui_save fd_log_viewer   = gui_save(main_window, "lastExplorePathLOG",  "");
 	const gui_save fd_ext_mself    = gui_save(main_window, "lastExplorePathExMSELF",  "");
+	const gui_save fd_ext_tar      = gui_save(main_window, "lastExplorePathExTAR",  "");
 
 	const gui_save mw_debugger         = gui_save(main_window, "debuggerVisible",  false);
 	const gui_save mw_logger           = gui_save(main_window, "loggerVisible",    true);
@@ -173,6 +176,7 @@ namespace gui
 
 	const gui_save l_tty       = gui_save(logger, "TTY",       true);
 	const gui_save l_level     = gui_save(logger, "level",     static_cast<uint>(logs::level::success));
+	const gui_save l_prefix    = gui_save(logger, "prefix_on", false);
 	const gui_save l_stack     = gui_save(logger, "stack",     true);
 	const gui_save l_stack_tty = gui_save(logger, "TTY_stack", false);
 	const gui_save l_limit     = gui_save(logger, "limit",     1000);
@@ -226,7 +230,6 @@ namespace gui
 	const gui_save sd_icon_color = gui_save(savedata, "icon_color", gl_icon_color);
 
 	const gui_save um_geometry    = gui_save(users, "geometry",    QByteArray());
-	const gui_save um_active_user = gui_save(users, "active_user", ""); // Deprecated
 
 	const gui_save loc_language = gui_save(localization, "language", "en");
 
@@ -245,28 +248,28 @@ public:
 	/** Changes the settings file to the destination preset*/
 	bool ChangeToConfig(const QString& config_name);
 
-	bool GetCategoryVisibility(int cat);
+	bool GetCategoryVisibility(int cat) const;
 
 	void ShowConfirmationBox(const QString& title, const QString& text, const gui_save& entry, int* result, QWidget* parent);
 	void ShowInfoBox(const QString& title, const QString& text, const gui_save& entry, QWidget* parent);
 	bool GetBootConfirmation(QWidget* parent, const gui_save& gui_save_entry = gui_save());
 
-	logs::level GetLogLevel();
-	bool GetGamelistColVisibility(int col);
-	QColor GetCustomColor(int col);
-	QStringList GetConfigEntries();
-	QStringList GetStylesheetEntries();
-	QStringList GetGameListCategoryFilters();
+	logs::level GetLogLevel() const;
+	bool GetGamelistColVisibility(int col) const;
+	QColor GetCustomColor(int col) const;
+	QStringList GetConfigEntries() const;
+	QStringList GetStylesheetEntries() const;
+	QStringList GetGameListCategoryFilters() const;
 
 public Q_SLOTS:
-	void Reset(bool remove_meta = false);
+	void Reset(bool remove_meta = false) const;
 
 	/** Sets the visibility of the chosen category. */
-	void SetCategoryVisibility(int cat, const bool& val);
+	void SetCategoryVisibility(int cat, const bool& val) const;
 
-	void SetGamelistColVisibility(int col, bool val);
+	void SetGamelistColVisibility(int col, bool val) const;
 
-	void SetCustomColor(int col, const QColor& val);
+	void SetCustomColor(int col, const QColor& val) const;
 
 	void SaveCurrentConfig(const QString& config_name);
 
@@ -274,9 +277,7 @@ public Q_SLOTS:
 	static gui_save GetGuiSaveForColumn(int col);
 
 private:
-	void SaveConfigNameToDefault(const QString& config_name);
-	void BackupSettingsToTarget(const QString& config_name);
+	void SaveConfigNameToDefault(const QString& config_name) const;
+	void BackupSettingsToTarget(const QString& config_name) const;
 	void ShowBox(QMessageBox::Icon icon, const QString& title, const QString& text, const gui_save& entry, int* result, QWidget* parent, bool always_on_top);
-
-	QString m_current_name;
 };

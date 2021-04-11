@@ -6,7 +6,7 @@
 
 #include <unordered_map>
 
-extern u64 get_system_time();
+#include "Emu/Cell/timers.hpp"
 
 #define RSX_GCM_FORMAT_IGNORED 0
 
@@ -1947,6 +1947,7 @@ namespace rsx
 				required_surface_height = tex_size / attributes.pitch;
 				attributes.slice_h = required_surface_height / attributes.depth;
 				break;
+			default: break; // TODO
 			}
 
 			if (options.is_compressed_format)
@@ -3078,17 +3079,17 @@ namespace rsx
 			return (num_flushes == 0u) ? 0.f : static_cast<f32>(m_misses_this_frame.load()) / num_flushes;
 		}
 
-		u32 get_texture_upload_calls_this_frame()
+		u32 get_texture_upload_calls_this_frame() const
 		{
 			return m_texture_upload_calls_this_frame;
 		}
 
-		u32 get_texture_upload_misses_this_frame()
+		u32 get_texture_upload_misses_this_frame() const
 		{
 			return m_texture_upload_misses_this_frame;
 		}
 
-		u32 get_texture_upload_miss_percentage()
+		u32 get_texture_upload_miss_percentage() const
 		{
 			return (m_texture_upload_calls_this_frame)? (m_texture_upload_misses_this_frame * 100 / m_texture_upload_calls_this_frame) : 0;
 		}

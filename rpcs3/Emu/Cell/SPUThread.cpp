@@ -20,9 +20,8 @@
 #include "Emu/Cell/SPUDisAsm.h"
 #include "Emu/Cell/SPUAnalyser.h"
 #include "Emu/Cell/SPUThread.h"
-#include "Emu/Cell/SPUInterpreter.h"
 #include "Emu/Cell/SPURecompiler.h"
-#include "Emu/Cell/RawSPUThread.h"
+#include "Emu/Cell/timers.hpp"
 
 #include <cmath>
 #include <cfenv>
@@ -281,9 +280,6 @@ extern void mov_rdata_nt(spu_rdata_t& _dst, const spu_rdata_t& _src)
 	_mm_stream_si128(reinterpret_cast<__m128i*>(_dst + 96), v2);
 	_mm_stream_si128(reinterpret_cast<__m128i*>(_dst + 112), v3);
 }
-
-extern u64 get_timebased_time();
-extern u64 get_system_time();
 
 void do_cell_atomic_128_store(u32 addr, const void* to_write);
 
@@ -1724,12 +1720,12 @@ spu_thread::spu_thread(lv2_spu_group* group, u32 index, std::string_view name, u
 
 		if (!group)
 		{
-			ensure(vm::get(vm::spu)->falloc(vm_offset(), SPU_LS_SIZE, &shm));
+			ensure(vm::get(vm::spu)->falloc(vm_offset(), SPU_LS_SIZE, &shm, 0x200));
 		}
 		else
 		{
 			// 0x1000 indicates falloc to allocate page with no access rights in base memory
-			ensure(vm::get(vm::spu)->falloc(vm_offset(), SPU_LS_SIZE, &shm, 0x1000));
+			ensure(vm::get(vm::spu)->falloc(vm_offset(), SPU_LS_SIZE, &shm, 0x1200));
 		}
 
 		// Try to guess free area
@@ -3108,7 +3104,7 @@ bool spu_thread::is_exec_code(u32 addr) const
 	return true;
 }
 
-u32 spu_thread::get_mfc_completed()
+u32 spu_thread::get_mfc_completed() const
 {
 	return ch_tag_mask & ~mfc_fence;
 }
@@ -3125,7 +3121,7 @@ bool spu_thread::process_mfc_cmd()
 			return false;
 		}
 
-		thread_ctrl::wait_on(state, old);;
+		thread_ctrl::wait_on(state, old);
 	}
 
 	spu::scheduler::concurrent_execution_watchdog watchdog(*this);
@@ -3489,7 +3485,7 @@ bool spu_thread::process_mfc_cmd()
 		ch_mfc_cmd.cmd, ch_mfc_cmd.lsa, ch_mfc_cmd.eal, ch_mfc_cmd.tag, ch_mfc_cmd.size);
 }
 
-bool spu_thread::reservation_check(u32 addr, const decltype(rdata)& data)
+bool spu_thread::reservation_check(u32 addr, const decltype(rdata)& data) const
 {
 	if (!addr)
 	{
@@ -4677,7 +4673,8 @@ void spu_thread::halt()
 		spu_runtime::g_escape(this);
 	}
 
-	fmt::throw_exception("Halt");
+	spu_log.fatal("Halt");
+	spu_runtime::g_escape(this);
 }
 
 void spu_thread::fast_call(u32 ls_addr)

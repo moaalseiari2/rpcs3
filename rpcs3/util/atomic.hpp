@@ -312,14 +312,18 @@ private:
 	template <uint Max, typename... T>
 	friend class atomic_wait::list;
 
-	static void	wait(const void* data, u32 size, u128 old128, u64 timeout, u128 mask128, atomic_wait::info* extension = nullptr);
-	static void notify_one(const void* data, u32 size, u128 mask128, u128 val128);
+	static void wait(const void* data, u32 size, u128 old_value, u64 timeout, u128 mask, atomic_wait::info* ext = nullptr);
+	static void notify_one(const void* data, u32 size, u128 mask128);
 	static void notify_all(const void* data, u32 size, u128 mask128);
 
 public:
 	static void set_wait_callback(bool(*cb)(const void* data, u64 attempts, u64 stamp0));
 	static void set_notify_callback(void(*cb)(const void* data, u64 progress));
-	static bool raw_notify(const void* data, u64 thread_id = 0);
+
+	static void notify_all(const void* data)
+	{
+		notify_all(data, 0, u128(-1));
+	}
 };
 
 template <uint Max, typename... T>
@@ -1079,6 +1083,11 @@ struct atomic_storage<T, 16> : atomic_storage<T, 0>
 	// TODO
 };
 
+#ifndef _MSC_VER
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Weffc++"
+#endif
+
 // Atomic type with lock-free and standard layout guarantees (and appropriate limitations)
 template <typename T, usz Align = sizeof(T)>
 class atomic_t
@@ -1588,34 +1597,26 @@ public:
 
 	void notify_one() noexcept
 	{
-		atomic_wait_engine::notify_one(&m_data, -1, atomic_wait::default_mask<atomic_t>, 0);
+		atomic_wait_engine::notify_one(&m_data, sizeof(T), atomic_wait::default_mask<atomic_t>);
 	}
 
 	// Notify with mask, allowing to not wake up thread which doesn't wait on this mask
 	void notify_one(type mask_value) noexcept
 	{
 		const u128 mask = std::bit_cast<get_uint_t<sizeof(T)>>(mask_value);
-		atomic_wait_engine::notify_one(&m_data, -1, mask, 0);
-	}
-
-	// Notify with mask and value, allowing to not wake up thread which doesn't wait on them
-	[[deprecated("Incomplete")]] void notify_one(type mask_value, type phantom_value) noexcept
-	{
-		const u128 mask = std::bit_cast<get_uint_t<sizeof(T)>>(mask_value);
-		const u128 _new = std::bit_cast<get_uint_t<sizeof(T)>>(phantom_value);
-		atomic_wait_engine::notify_one(&m_data, sizeof(T), mask, _new);
+		atomic_wait_engine::notify_one(&m_data, sizeof(T), mask);
 	}
 
 	void notify_all() noexcept
 	{
-		atomic_wait_engine::notify_all(&m_data, -1, atomic_wait::default_mask<atomic_t>);
+		atomic_wait_engine::notify_all(&m_data, sizeof(T), atomic_wait::default_mask<atomic_t>);
 	}
 
 	// Notify all threads with mask, allowing to not wake up threads which don't wait on them
 	void notify_all(type mask_value) noexcept
 	{
 		const u128 mask = std::bit_cast<get_uint_t<sizeof(T)>>(mask_value);
-		atomic_wait_engine::notify_all(&m_data, -1, mask);
+		atomic_wait_engine::notify_all(&m_data, sizeof(T), mask);
 	}
 };
 
@@ -1714,3 +1715,7 @@ namespace atomic_wait
 	template <usz Align>
 	constexpr u128 default_mask<atomic_t<bool, Align>> = 1;
 }
+
+#ifndef _MSC_VER
+#pragma GCC diagnostic pop
+#endif

@@ -1075,7 +1075,7 @@ extern void ppu_execute_syscall(ppu_thread& ppu, u64 code)
 	{
 		g_fxo->get<named_thread<ppu_syscall_usage>>().stat[code]++;
 
-		if (auto func = g_ppu_syscall_table[code].first)
+		if (const auto func = g_ppu_syscall_table[code].first)
 		{
 			func(ppu);
 			ppu_log.trace("Syscall '%s' (%llu) finished, r3=0x%llx", ppu_syscall_code(code), code, ppu.gpr[3]);
@@ -1105,8 +1105,6 @@ std::string ppu_get_syscall_name(u64 code)
 
 	return fmt::format("syscall_%u", code);
 }
-
-extern u64 get_guest_system_time();
 
 DECLARE(lv2_obj::g_mutex);
 DECLARE(lv2_obj::g_ppu);
@@ -1265,6 +1263,7 @@ bool lv2_obj::awake_unlocked(cpu_thread* cpu, s32 prio)
 				break;
 			}
 		}
+		break;
 	}
 	case enqueue_cmd:
 	{

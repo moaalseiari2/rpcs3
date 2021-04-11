@@ -28,6 +28,11 @@ pkg_install_dialog::pkg_install_dialog(const QStringList& paths, game_compatibil
 	for (const QString& path : paths)
 	{
 		const compat::package_info info = game_compatibility::GetPkgInfo(path, compat);
+		if (!info.is_valid)
+		{
+			continue;
+		}
+
 		const QFileInfo file_info(path);
 
 		// We have to build our complicated localized string in some annoying manner
@@ -161,7 +166,7 @@ pkg_install_dialog::pkg_install_dialog(const QStringList& paths, game_compatibil
 	setObjectName("pkg_install_dialog");
 }
 
-void pkg_install_dialog::MoveItem(int offset)
+void pkg_install_dialog::MoveItem(int offset) const
 {
 	const int src_index = m_dir_list->currentRow();
 	const int dest_index = src_index + offset;

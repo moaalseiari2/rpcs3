@@ -32,10 +32,13 @@ namespace rsx
 			compiled_resource get_compiled() override;
 
 			void on_button_pressed(pad_button button_press) override;
+			void close(bool use_callback, bool stop_pad_interception) override;
 
 			error_code show(bool is_blocking, const std::string& text, const MsgDialogType& type, std::function<void(s32 status)> on_close);
 
-			u32 progress_bar_count();
+			void set_text(const std::string& text);
+
+			u32 progress_bar_count() const;
 			void progress_bar_set_taskbar_index(s32 index);
 			error_code progress_bar_set_message(u32 index, const std::string& msg);
 			error_code progress_bar_increment(u32 index, f32 value);

@@ -1,5 +1,6 @@
 #include "stdafx.h"
 #include "CPUThread.h"
+#include "CPUDisAsm.h"
 
 #include "Emu/System.h"
 #include "Emu/system_config.h"
@@ -16,7 +17,6 @@
 #include <unordered_map>
 #include <map>
 
-#include <immintrin.h>
 #include <emmintrin.h>
 
 DECLARE(cpu_thread::g_threads_created){0};
@@ -252,7 +252,7 @@ struct cpu_prof
 
 using cpu_profiler = named_thread<cpu_prof>;
 
-thread_local cpu_thread* g_tls_current_cpu_thread = nullptr;
+thread_local DECLARE(cpu_thread::g_tls_this_thread) = nullptr;
 
 // Total number of CPU threads
 static atomic_t<u64, 64> s_cpu_counter{0};
@@ -403,9 +403,9 @@ namespace cpu_counter
 
 void cpu_thread::operator()()
 {
-	g_tls_current_cpu_thread = this;
+	g_tls_this_thread = this;
 
-	if (g_cfg.core.thread_scheduler_enabled)
+	if (g_cfg.core.thread_scheduler != thread_scheduler_mode::os)
 	{
 		thread_ctrl::set_thread_affinity_mask(thread_ctrl::get_affinity_mask(id_type() == 1 ? thread_class::ppu : thread_class::spu));
 	}
@@ -535,7 +535,7 @@ void cpu_thread::operator()()
 
 			s_cpu_counter--;
 
-			g_tls_current_cpu_thread = nullptr;
+			g_tls_this_thread = nullptr;
 
 			g_threads_deleted++;
 
@@ -597,6 +597,29 @@ cpu_thread::~cpu_thread()
 cpu_thread::cpu_thread(u32 id)
 	: id(id)
 {
+	while (Emu.GetStatus() == system_state::paused)
+	{
+		// Solve race between Emulator::Pause and this construction of thread which most likely is guarded by IDM mutex
+		state += cpu_flag::dbg_global_pause;
+
+		if (Emu.GetStatus() != system_state::paused)
+		{
+			// Emulator::Resume was called inbetween
+			state -= cpu_flag::dbg_global_pause;
+
+			// Recheck if state is inconsistent
+			continue;
+		}
+
+		break;
+	}
+
+	if (Emu.IsStopped())
+	{
+		// For similar race as above
+		state += cpu_flag::exit;
+	}
+
 	g_threads_created++;
 }
 
@@ -851,14 +874,13 @@ std::string cpu_thread::get_name() const
 	{
 		return thread_ctrl::get_name(*static_cast<const named_thread<ppu_thread>*>(this));
 	}
-	else if (id_type() == 2)
+
+	if (id_type() == 2)
 	{
 		return thread_ctrl::get_name(*static_cast<const named_thread<spu_thread>*>(this));
 	}
-	else
-	{
-		fmt::throw_exception("Invalid cpu_thread type");
-	}
+
+	fmt::throw_exception("Invalid cpu_thread type");
 }
 
 u32 cpu_thread::get_pc() const
@@ -1119,7 +1141,7 @@ bool cpu_thread::suspend_work::push(cpu_thread* _this) noexcept
 
 void cpu_thread::stop_all() noexcept
 {
-	if (g_tls_current_cpu_thread)
+	if (g_tls_this_thread)
 	{
 		// Report unsupported but unnecessary case
 		sys_log.fatal("cpu_thread::stop_all() has been called from a CPU thread.");
@@ -1157,8 +1179,14 @@ void cpu_thread::flush_profilers() noexcept
 		return;
 	}
 
-	if (g_cfg.core.spu_prof || false)
+	if (g_cfg.core.spu_prof)
 	{
 		g_fxo->get<cpu_profiler>().registered.push(0);
 	}
+}
+
+u32 CPUDisAsm::DisAsmBranchTarget(s32 /*imm*/)
+{
+	// Unused
+	return 0;
 }

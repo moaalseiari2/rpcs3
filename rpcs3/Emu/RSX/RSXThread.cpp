@@ -2,6 +2,7 @@
 #include "RSXThread.h"
 
 #include "Emu/Cell/PPUCallback.h"
+#include "Emu/Cell/timers.hpp"
 
 #include "Common/BufferUtils.h"
 #include "Common/GLSLCommon.h"
@@ -12,6 +13,7 @@
 #include "rsx_utils.h"
 #include "gcm_printing.h"
 #include "Emu/Cell/lv2/sys_event.h"
+#include "Emu/Cell/lv2/sys_time.h"
 #include "Emu/Cell/Modules/cellGcmSys.h"
 #include "Overlays/overlay_perf_metrics.h"
 #include "Utilities/date_time.h"
@@ -36,8 +38,6 @@ rsx::frame_capture_data frame_capture;
 
 extern CellGcmOffsetTable offsetTable;
 extern thread_local std::string(*g_tls_log_prefix)();
-extern u64 sys_time_get_timebase_frequency();
-extern u64 get_timebased_time();
 
 namespace rsx
 {
@@ -390,11 +390,11 @@ namespace rsx
 
 	void thread::capture_frame(const std::string &name)
 	{
-		frame_trace_data::draw_state draw_state = {};
+		frame_trace_data::draw_state draw_state{};
 
 		draw_state.programs = get_programs();
 		draw_state.name = name;
-		frame_debug.draw_calls.push_back(draw_state);
+		frame_debug.draw_calls.emplace_back(std::move(draw_state));
 	}
 
 	void thread::begin()
@@ -506,27 +506,12 @@ namespace rsx
 
 	void thread::cpu_task()
 	{
+		while (Emu.IsReady())
 		{
-			// Wait for startup (TODO)
-			while (m_rsx_thread_exiting)
-			{
-				// Wait for external pause events
-				if (external_interrupt_lock)
-				{
-					wait_pause();
-				}
-
-				thread_ctrl::wait_for(1000);
-
-				if (is_stopped())
-				{
-					return;
-				}
-			}
-
-			on_task();
+			thread_ctrl::wait_for(1000);
 		}
 
+		on_task();
 		on_exit();
 	}
 
@@ -548,7 +533,7 @@ namespace rsx
 		g_tls_log_prefix = []
 		{
 			const auto rsx = get_current_renderer();
-			return fmt::format("RSX [0x%07x]", +rsx->ctrl->get);
+			return fmt::format("RSX [0x%07x]", rsx->ctrl ? +rsx->ctrl->get : 0);
 		};
 
 		method_registers.init();
@@ -558,11 +543,41 @@ namespace rsx
 		g_fxo->get<rsx::dma_manager>().init();
 		on_init_thread();
 
+		is_inited = true;
+		is_inited.notify_all();
+
 		if (!zcull_ctrl)
 		{
 			//Backend did not provide an implementation, provide NULL object
 			zcull_ctrl = std::make_unique<::rsx::reports::ZCULL_control>();
 		}
+
+		performance_counters.state = FIFO_state::empty;
+
+		// Wait for startup (TODO)
+		while (m_rsx_thread_exiting)
+		{
+			// Wait for external pause events
+			if (external_interrupt_lock)
+			{
+				wait_pause();
+			}
+
+			// Execute backend-local tasks first
+			do_local_task(performance_counters.state);
+
+			// Update sub-units
+			zcull_ctrl->update(this);
+
+			if (is_stopped())
+			{
+				return;
+			}
+
+			thread_ctrl::wait_for(1000);
+		}
+
+		performance_counters.state = FIFO_state::running;
 
 		fifo_ctrl = std::make_unique<::rsx::FIFO::FIFO_control>(this);
 
@@ -639,13 +654,10 @@ namespace rsx
 		// Raise priority above other threads
 		thread_ctrl::scoped_priority high_prio(+1);
 
-		if (g_cfg.core.thread_scheduler_enabled)
+		if (g_cfg.core.thread_scheduler != thread_scheduler_mode::os)
 		{
 			thread_ctrl::set_thread_affinity_mask(thread_ctrl::get_affinity_mask(thread_class::rsx));
 		}
-
-		// Round to nearest to deal with forward/reverse scaling
-		fesetround(FE_TONEAREST);
 
 		while (!test_stopped())
 		{
@@ -1147,7 +1159,7 @@ namespace rsx
 		case rsx::surface_raster_type::swizzle:
 			packed_render = true;
 			break;
-		};
+		}
 
 		if (!packed_render)
 		{
